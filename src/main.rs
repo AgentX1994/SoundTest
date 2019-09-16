@@ -4,8 +4,8 @@ use std::time::Duration;
 use cpal::traits::{DeviceTrait, EventLoopTrait, HostTrait};
 use cpal::{StreamData, UnknownTypeOutputBuffer};
 
-use sound_test::oscillator::saw::SawOscillator;
 use sound_test::oscillator::sine::SineOscillator;
+use sound_test::oscillator::wavetable::{WaveTable, WaveTableOscillator, SAW_WAVE_TABLE};
 
 fn main() {
     // Get the default audio host
@@ -32,7 +32,7 @@ fn main() {
 
     println!("Audio format: {:?}", format);
 
-    let mut osc = SawOscillator::new(500.0, sample_rate);
+    let mut osc = WaveTableOscillator::new(500.0, sample_rate, SAW_WAVE_TABLE.clone());
     println!("{:?}", osc);
 
     thread::spawn(move || {
