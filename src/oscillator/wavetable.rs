@@ -1,7 +1,24 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::LineWriter;
+use std::ops::{Index, IndexMut};
+
 use lazy_static::lazy_static;
 const DEFAULT_TABLE_SIZE: usize = 256;
 
 lazy_static! {
+    pub static ref SINE_WAVE_TABLE: WaveTable = {
+        let mut array = [0.0; DEFAULT_TABLE_SIZE];
+
+        for i in 0..DEFAULT_TABLE_SIZE {
+            // sine = 2*pi*i/TABLE_SIZE, to complete a full wave at i == TABLE_SIZE
+            array[i] = (2.0 * 3.1415926535 * (i as f64) / (DEFAULT_TABLE_SIZE as f64)).sin();
+        }
+
+        WaveTable {
+            table: array.to_vec(),
+        }
+    };
     pub static ref SAW_WAVE_TABLE: WaveTable = {
         let mut array = [0.0; DEFAULT_TABLE_SIZE];
 
@@ -14,12 +31,70 @@ lazy_static! {
             table: array.to_vec(),
         }
     };
+    pub static ref SQUARE_WAVE_TABLE: WaveTable = {
+        let mut array = [0.0; DEFAULT_TABLE_SIZE];
+
+        let half_table_size = DEFAULT_TABLE_SIZE / 2;
+        for i in 0..DEFAULT_TABLE_SIZE {
+            array[i] = if i <= half_table_size { -1.0 } else { 1.0 };
+        }
+
+        WaveTable {
+            table: array.to_vec(),
+        }
+    };
+    pub static ref TRIANGLE_WAVE_TABLE: WaveTable = {
+        let mut array = [0.0; DEFAULT_TABLE_SIZE];
+
+        let half_table_size = DEFAULT_TABLE_SIZE as f64 / 2.0;
+        for i in 0..DEFAULT_TABLE_SIZE {
+            // Compute the Triangle wave as the shifted absolute value of the saw wave
+            // offset to start at zero
+            let value = ((i + (half_table_size as usize) / 2)%DEFAULT_TABLE_SIZE) as f64 / half_table_size - 1.0;
+            array[i] = 2.0*value.abs() - 1.0;
+        }
+
+        WaveTable {
+            table: array.to_vec(),
+        }
+    };
 }
 
 /// A Wave Table based
 #[derive(Clone, Debug, Default)]
 pub struct WaveTable {
     pub table: Vec<f64>,
+}
+
+impl WaveTable {
+    pub fn len(&self) -> usize {
+        self.table.len()
+    }
+
+    pub fn dump_to_file(&self, file_name: &str) -> std::io::Result<()> {
+        let file = File::create(file_name)?;
+        let mut file = LineWriter::new(file);
+
+        for value in self.table.iter() {
+            write!(file, "{}\n", value)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Index<usize> for WaveTable {
+    type Output = f64;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        &self.table[i]
+    }
+}
+
+impl IndexMut<usize> for WaveTable {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        &mut self.table[i]
+    }
 }
 
 /// A Wave Table oscillator
@@ -35,19 +110,23 @@ pub struct WaveTableOscillator {
     delta: f64,
     /// the wave table
     table: WaveTable,
+    /// Whether this oscillator is currently playing
+    playing: bool,
 }
 
 impl WaveTableOscillator {
-    pub fn new(frequency: f64, sample_rate: u64, table: WaveTable) -> Self {
+    pub fn new(sample_rate: u64, table: WaveTable) -> Self {
         let mut s = Self::default();
-        s.cook_frequency(frequency, sample_rate, table.table.len());
+        s.sample_rate = sample_rate;
         s.index = 0.0;
         s.table = table;
+        s.playing = false;
         s
     }
 
     pub fn set_frequency(&mut self, frequency: f64) {
-        self.cook_frequency(frequency, self.sample_rate, self.table.table.len());
+        self.frequency = frequency;
+        self.cook_frequency();
     }
 
     pub fn get_frequency(&self) -> f64 {
@@ -55,20 +134,38 @@ impl WaveTableOscillator {
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: u64) {
-        self.cook_frequency(self.frequency, sample_rate, self.table.table.len());
+        self.sample_rate = sample_rate;
+        self.cook_frequency();
     }
 
     pub fn get_sample_rate(&self) -> u64 {
         self.sample_rate
     }
 
-    fn cook_frequency(&mut self, frequency: f64, sample_rate: u64, table_size: usize) {
-        self.sample_rate = sample_rate;
+    fn cook_frequency(&mut self) {
+        self.delta = self.frequency * (self.table.len() as f64 / self.sample_rate as f64);
+    }
+
+    pub fn note_on(&mut self, frequency: f64) {
         self.frequency = frequency;
-        self.delta = frequency * (table_size as f64 / sample_rate as f64);
+        self.cook_frequency();
+        self.playing = true;
+        self.index = 0.0;
+    }
+
+    pub fn note_off(&mut self) {
+        self.playing = false;
+    }
+
+    pub fn is_playing(&self) -> bool {
+        self.playing
     }
 
     pub fn step(&mut self) -> f64 {
+        if !self.playing {
+            return 0.0;
+        }
+
         let index0 = self.index as usize;
         let index1 = if index0 == self.table.table.len() - 1 {
             0
@@ -78,12 +175,11 @@ impl WaveTableOscillator {
 
         let frac = self.index - index0 as f64;
 
-        let sample =
-            self.table.table[index0] + frac * (self.table.table[index1] - self.table.table[index0]);
+        let sample = self.table[index0] + frac * (self.table[index1] - self.table[index0]);
 
         self.index += self.delta;
-        if self.index >= self.table.table.len() as f64 {
-            self.index -= self.table.table.len() as f64;
+        if self.index >= self.table.len() as f64 {
+            self.index -= self.table.len() as f64;
         }
 
         sample
