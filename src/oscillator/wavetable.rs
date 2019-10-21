@@ -10,9 +10,9 @@ lazy_static! {
     pub static ref SINE_WAVE_TABLE: WaveTable = {
         let mut array = [0.0; DEFAULT_TABLE_SIZE];
 
-        for i in 0..DEFAULT_TABLE_SIZE {
+        for (i, x) in array.iter_mut().enumerate() {
             // sine = 2*pi*i/TABLE_SIZE, to complete a full wave at i == TABLE_SIZE
-            array[i] = (2.0 * 3.1415926535 * (i as f64) / (DEFAULT_TABLE_SIZE as f64)).sin();
+            *x = (2.0 *  std::f64::consts::PI * (i as f64) / (DEFAULT_TABLE_SIZE as f64)).sin();
         }
 
         WaveTable {
@@ -23,8 +23,8 @@ lazy_static! {
         let mut array = [0.0; DEFAULT_TABLE_SIZE];
 
         let half_table_size = DEFAULT_TABLE_SIZE as f64 / 2.0;
-        for i in 0..DEFAULT_TABLE_SIZE {
-            array[i] = i as f64 / half_table_size - 1.0;
+        for (i, x) in array.iter_mut().enumerate() {
+            *x = i as f64 / half_table_size - 1.0;
         }
 
         WaveTable {
@@ -35,8 +35,8 @@ lazy_static! {
         let mut array = [0.0; DEFAULT_TABLE_SIZE];
 
         let half_table_size = DEFAULT_TABLE_SIZE / 2;
-        for i in 0..DEFAULT_TABLE_SIZE {
-            array[i] = if i <= half_table_size { -1.0 } else { 1.0 };
+        for (i, x) in array.iter_mut().enumerate() {
+            *x = if i <= half_table_size { -1.0 } else { 1.0 };
         }
 
         WaveTable {
@@ -47,11 +47,11 @@ lazy_static! {
         let mut array = [0.0; DEFAULT_TABLE_SIZE];
 
         let half_table_size = DEFAULT_TABLE_SIZE as f64 / 2.0;
-        for i in 0..DEFAULT_TABLE_SIZE {
+        for (i, x) in array.iter_mut().enumerate() {
             // Compute the Triangle wave as the shifted absolute value of the saw wave
             // offset to start at zero
             let value = ((i + (half_table_size as usize) / 2)%DEFAULT_TABLE_SIZE) as f64 / half_table_size - 1.0;
-            array[i] = 2.0*value.abs() - 1.0;
+            *x = 2.0*value.abs() - 1.0;
         }
 
         WaveTable {
@@ -71,12 +71,16 @@ impl WaveTable {
         self.table.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn dump_to_file(&self, file_name: &str) -> std::io::Result<()> {
         let file = File::create(file_name)?;
         let mut file = LineWriter::new(file);
 
         for value in self.table.iter() {
-            write!(file, "{}\n", value)?;
+            writeln!(file, "{}", value)?;
         }
 
         Ok(())

@@ -45,7 +45,7 @@ impl SineOscillator {
     fn cook_frequency(&mut self, frequency: f64, sample_rate: u64) {
         self.sample_rate = sample_rate;
         self.frequency = frequency;
-        self.omega = 2.0 * 3.1416926535 * frequency / sample_rate as f64;
+        self.omega = 2.0 * std::f64::consts::PI * frequency / sample_rate as f64;
         self.epsilon = 2.0 * (self.omega / 2.0).sin();
     }
 

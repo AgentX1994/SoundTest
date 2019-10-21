@@ -105,7 +105,7 @@ fn main() {
         .play_stream(stream_id)
         .expect("failed to play stream");
 
-    let sample_rate = format.sample_rate.0 as u64;
+    let sample_rate = u64::from(format.sample_rate.0);
 
     println!("Audio format: {:?}", format);
 
@@ -139,7 +139,7 @@ fn main() {
                             .map(&WaveTableOscillator::step)
                             .sum();
                         next_value /= oscs_vec.lock().unwrap().len() as f64;
-                        let value = ((next_value * 0.5 + 0.5) * std::u16::MAX as f64) as u16;
+                        let value = ((next_value * 0.5 + 0.5) * f64::from(std::u16::MAX)) as u16;
                         for out in sample.iter_mut() {
                             *out = value;
                         }
@@ -156,7 +156,7 @@ fn main() {
                             .map(&WaveTableOscillator::step)
                             .sum();
                         next_value /= oscs_vec.lock().unwrap().len() as f64;
-                        let value = (next_value * std::i16::MAX as f64) as i16;
+                        let value = (next_value * f64::from(std::i16::MAX)) as i16;
                         for out in sample.iter_mut() {
                             *out = value;
                         }
@@ -225,7 +225,9 @@ fn main() {
                 } => {
                     if let Some(frequency) = keymap.get(&key) {
                         for osc in oscs.lock().unwrap().iter_mut() {
-                            if osc.is_playing() && osc.get_frequency() == *frequency {
+                            if osc.is_playing()
+                                && (osc.get_frequency() - *frequency) < std::f64::EPSILON
+                            {
                                 println!("\tStopping frequency {}", frequency);
                                 osc.note_off();
                                 break;
