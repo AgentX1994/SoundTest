@@ -13,6 +13,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 
+use sound_test::filters::biquad::BiquadFilter;
 use sound_test::oscillator::sine::SineOscillator;
 use sound_test::oscillator::wavetable::{
     WaveTable, WaveTableOscillator, SAW_WAVE_TABLE, SINE_WAVE_TABLE, SQUARE_WAVE_TABLE,
@@ -116,6 +117,13 @@ fn main() {
         oscs.lock().unwrap().push(osc);
     }
 
+    // For testing purposes
+    let octave_transpose = 1.0;
+
+    // Create filter to test with
+    let mut lp_filter = BiquadFilter::high_pass(200.0, sample_rate as f64, 0.1);
+    println!("{:?}", lp_filter);
+
     let oscs_vec = oscs.clone();
     thread::spawn(move || {
         event_loop.run(move |stream_id, stream_result| {
@@ -139,6 +147,7 @@ fn main() {
                             .map(&WaveTableOscillator::step)
                             .sum();
                         next_value /= oscs_vec.lock().unwrap().len() as f64;
+                        next_value = lp_filter.step(next_value);
                         let value = ((next_value * 0.5 + 0.5) * f64::from(std::u16::MAX)) as u16;
                         for out in sample.iter_mut() {
                             *out = value;
@@ -156,6 +165,7 @@ fn main() {
                             .map(&WaveTableOscillator::step)
                             .sum();
                         next_value /= oscs_vec.lock().unwrap().len() as f64;
+                        next_value = lp_filter.step(next_value);
                         let value = (next_value * f64::from(std::i16::MAX)) as i16;
                         for out in sample.iter_mut() {
                             *out = value;
@@ -173,6 +183,7 @@ fn main() {
                             .map(&WaveTableOscillator::step)
                             .sum();
                         next_value /= oscs_vec.lock().unwrap().len() as f64;
+                        next_value = lp_filter.step(next_value);
                         let value = next_value as f32;
                         for out in sample.iter_mut() {
                             *out = value;
@@ -213,8 +224,8 @@ fn main() {
                     if let Some(frequency) = keymap.get(&key) {
                         for osc in oscs.lock().unwrap().iter_mut() {
                             if !osc.is_playing() {
-                                println!("\tPlaying frequency {}", frequency);
-                                osc.note_on(*frequency);
+                                println!("\tPlaying frequency {}", *frequency * octave_transpose);
+                                osc.note_on(*frequency * octave_transpose);
                                 break;
                             }
                         }
@@ -226,9 +237,10 @@ fn main() {
                     if let Some(frequency) = keymap.get(&key) {
                         for osc in oscs.lock().unwrap().iter_mut() {
                             if osc.is_playing()
-                                && (osc.get_frequency() - *frequency) < std::f64::EPSILON
+                                && (osc.get_frequency() - *frequency * octave_transpose)
+                                    < std::f64::EPSILON
                             {
-                                println!("\tStopping frequency {}", frequency);
+                                println!("\tStopping frequency {}", *frequency * octave_transpose);
                                 osc.note_off();
                                 break;
                             }
