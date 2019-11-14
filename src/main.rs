@@ -49,8 +49,8 @@ fn main() {
         (Keycode::H, MidiNote::new(44)),     // 'h' => G#2/Ab2
         (Keycode::N, MidiNote::new(45)),     // 'n' => A2
         (Keycode::J, MidiNote::new(46)),     // 'j' => A#2/Bb2
-        (Keycode::M, MidiNote::new(45)),     // 'm' => B2
-        (Keycode::Comma, MidiNote::new(47)), // ',' => C3
+        (Keycode::M, MidiNote::new(47)),     // 'm' => B2
+        (Keycode::Comma, MidiNote::new(48)), // ',' => C3
         (Keycode::Q, MidiNote::new(48)),     // 'q' => C3
         (Keycode::Num2, MidiNote::new(49)),  // '2' => C#3/Db3
         (Keycode::W, MidiNote::new(50)),     // 'w' => D3
