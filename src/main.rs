@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 
+use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -14,6 +15,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 
 use sound_test::filters::biquad::BiquadFilter;
+use sound_test::midi::MidiNote;
 use sound_test::oscillator::sine::SineOscillator;
 use sound_test::oscillator::wavetable::{
     WaveTable, WaveTableOscillator, SAW_WAVE_TABLE, SINE_WAVE_TABLE, SQUARE_WAVE_TABLE,
@@ -35,37 +37,37 @@ fn main() {
         println!("Could not dump triangle wave table: {}", e);
     }
 
-    let keymap: HashMap<Keycode, f64> = [
-        (Keycode::Z, 65.41),      // 'z' => C2
-        (Keycode::S, 69.30),      // 's' => C#2/Db2
-        (Keycode::X, 73.42),      // 'x' => D2
-        (Keycode::D, 77.78),      // 'd' => D#2/Eb2
-        (Keycode::C, 82.41),      // 'c' => E2
-        (Keycode::V, 87.31),      // 'v' => F2
-        (Keycode::G, 92.50),      // 'g' => F#2/Gb2
-        (Keycode::B, 98.00),      // 'b' => G2
-        (Keycode::H, 103.83),     // 'h' => G#2/Ab2
-        (Keycode::N, 110.00),     // 'n' => A2
-        (Keycode::J, 116.54),     // 'j' => A#2/Bb2
-        (Keycode::M, 123.47),     // 'm' => B2
-        (Keycode::Comma, 130.81), // ',' => C3
-        (Keycode::Q, 130.81),     // 'q' => C3
-        (Keycode::Num2, 138.59),  // '2' => C#3/Db3
-        (Keycode::W, 146.83),     // 'w' => D3
-        (Keycode::Num3, 155.56),  // '3' => D#3/Eb3
-        (Keycode::E, 164.81),     // 'e' => E3
-        (Keycode::R, 174.61),     // 'r' => F3
-        (Keycode::Num5, 185.00),  // '5' => F#3/Gb3
-        (Keycode::T, 196.00),     // 't' => G3
-        (Keycode::Num6, 207.65),  // '6' => G#3/Ab3
-        (Keycode::Y, 220.00),     // 'y' => A3
-        (Keycode::Num7, 233.08),  // '7' => A#3/Bb3
-        (Keycode::U, 246.94),     // 'u' => B3
-        (Keycode::I, 261.63),     // 'i' => C4
-        (Keycode::Num9, 277.18),  // '9' => C#4/Db4
-        (Keycode::O, 293.66),     // 'o' => D4
-        (Keycode::Num0, 311.13),  // '0' => D#4/Eb4
-        (Keycode::P, 329.63),     // 'p' => E4
+    let keymap: HashMap<Keycode, MidiNote> = [
+        (Keycode::Z, MidiNote::new(36)),     // 'z' => C2
+        (Keycode::S, MidiNote::new(37)),     // 's' => C#2/Db2
+        (Keycode::X, MidiNote::new(38)),     // 'x' => D2
+        (Keycode::D, MidiNote::new(39)),     // 'd' => D#2/Eb2
+        (Keycode::C, MidiNote::new(40)),     // 'c' => E2
+        (Keycode::V, MidiNote::new(41)),     // 'v' => F2
+        (Keycode::G, MidiNote::new(42)),     // 'g' => F#2/Gb2
+        (Keycode::B, MidiNote::new(43)),     // 'b' => G2
+        (Keycode::H, MidiNote::new(44)),     // 'h' => G#2/Ab2
+        (Keycode::N, MidiNote::new(45)),     // 'n' => A2
+        (Keycode::J, MidiNote::new(46)),     // 'j' => A#2/Bb2
+        (Keycode::M, MidiNote::new(45)),     // 'm' => B2
+        (Keycode::Comma, MidiNote::new(47)), // ',' => C3
+        (Keycode::Q, MidiNote::new(48)),     // 'q' => C3
+        (Keycode::Num2, MidiNote::new(49)),  // '2' => C#3/Db3
+        (Keycode::W, MidiNote::new(50)),     // 'w' => D3
+        (Keycode::Num3, MidiNote::new(51)),  // '3' => D#3/Eb3
+        (Keycode::E, MidiNote::new(52)),     // 'e' => E3
+        (Keycode::R, MidiNote::new(53)),     // 'r' => F3
+        (Keycode::Num5, MidiNote::new(54)),  // '5' => F#3/Gb3
+        (Keycode::T, MidiNote::new(55)),     // 't' => G3
+        (Keycode::Num6, MidiNote::new(56)),  // '6' => G#3/Ab3
+        (Keycode::Y, MidiNote::new(57)),     // 'y' => A3
+        (Keycode::Num7, MidiNote::new(58)),  // '7' => A#3/Bb3
+        (Keycode::U, MidiNote::new(59)),     // 'u' => B3
+        (Keycode::I, MidiNote::new(60)),     // 'i' => C4
+        (Keycode::Num9, MidiNote::new(61)),  // '9' => C#4/Db4
+        (Keycode::O, MidiNote::new(62)),     // 'o' => D4
+        (Keycode::Num0, MidiNote::new(63)),  // '0' => D#4/Eb4
+        (Keycode::P, MidiNote::new(64)),     // 'p' => E4
     ]
     .iter()
     .copied()
@@ -118,7 +120,7 @@ fn main() {
     }
 
     // For testing purposes
-    let octave_transpose = 1.0;
+    let mut transpose = 0;
 
     // Create filter to test with
     let mut lp_filter = BiquadFilter::high_pass(200.0, sample_rate as f64, 0.1);
@@ -217,15 +219,36 @@ fn main() {
                     }
                 }
                 Event::KeyDown {
+                    keycode: Some(Keycode::Up),
+                    ..
+                } => {
+                    if !oscs.lock().unwrap().iter().any(|osc| osc.is_playing()) {
+                        transpose = min(72, transpose + 12);
+                    }
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Down),
+                    ..
+                } => {
+                    if !oscs.lock().unwrap().iter().any(|osc| osc.is_playing()) {
+                        transpose = max(-36, transpose - 12);
+                    }
+                }
+                Event::KeyDown {
                     keycode: Some(key),
                     repeat: false,
                     ..
                 } => {
-                    if let Some(frequency) = keymap.get(&key) {
+                    if let Some(ref midinote) = keymap.get(&key) {
                         for osc in oscs.lock().unwrap().iter_mut() {
+                            let note = midinote.transpose(transpose);
                             if !osc.is_playing() {
-                                println!("\tPlaying frequency {}", *frequency * octave_transpose);
-                                osc.note_on(*frequency * octave_transpose);
+                                println!(
+                                    "\tPlaying note {}, frequency {}",
+                                    note.note,
+                                    note.to_frequency()
+                                );
+                                osc.note_on(note.to_frequency());
                                 break;
                             }
                         }
@@ -234,13 +257,17 @@ fn main() {
                 Event::KeyUp {
                     keycode: Some(key), ..
                 } => {
-                    if let Some(frequency) = keymap.get(&key) {
+                    if let Some(midinote) = keymap.get(&key) {
                         for osc in oscs.lock().unwrap().iter_mut() {
+                            let note = midinote.transpose(transpose);
                             if osc.is_playing()
-                                && (osc.get_frequency() - *frequency * octave_transpose)
-                                    < std::f64::EPSILON
+                                && (osc.get_frequency() - note.to_frequency()) < std::f64::EPSILON
                             {
-                                println!("\tStopping frequency {}", *frequency * octave_transpose);
+                                println!(
+                                    "\tStopping note {}, frequency {}",
+                                    note.note,
+                                    note.to_frequency()
+                                );
                                 osc.note_off();
                                 break;
                             }
